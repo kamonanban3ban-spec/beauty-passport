@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'　
+import { useState, useEffect, useRef } from 'react'
 import { INDUSTRIES } from '../industries'
 import { getClientByQrId, subscribeRecords, addClientPhotos } from '../firebase/db'
 
@@ -15,6 +15,56 @@ const Avatar = ({ name, color, size=44 }) => (
 const MenuTag = ({ children, color }) => (
   <span style={{ background:color+'18', color, border:`1px solid ${color}44`, borderRadius:999, fontSize:12, fontWeight:600, padding:'4px 12px', fontFamily:font, whiteSpace:'nowrap' }}>{children}</span>
 )
+
+// ── ID入力画面（受付QR用）─────────────────────────────────────────────────────
+function QrIdInput({ I, onFound }) {
+  const [input, setInput] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const search = async () => {
+    const id = input.trim()
+    if (!id) return
+    setLoading(true)
+    setError('')
+    const client = await getClientByQrId(id)
+    setLoading(false)
+    if (client) {
+      onFound(client)
+    } else {
+      setError('IDが見つかりません。スタッフに確認してください。')
+    }
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'52px 28px', justifyContent:'center', minHeight:'80vh' }}>
+      <div style={{ fontSize:48, marginBottom:20 }}>💅</div>
+      <div style={{ fontSize:24, fontWeight:700, color:'#2d2028', marginBottom:8, fontFamily:fontAlt, textAlign:'center' }}>{I.name}</div>
+      <div style={{ fontSize:13, color:'#b89ca4', marginBottom:36, fontFamily:font, textAlign:'center', lineHeight:1.8 }}>
+        スタッフから受け取った<br/>マイIDを入力してください
+      </div>
+
+      <div style={{ width:'100%', marginBottom:12 }}>
+        <input
+          placeholder="例：hair_abc12345"
+          value={input}
+          onChange={e=>{ setInput(e.target.value); setError('') }}
+          style={{ width:'100%', background:'#fff', border:`1.5px solid ${I.colorBorder}`, borderRadius:14, color:'#2d2028', fontSize:15, padding:'13px 16px', fontFamily:font, outline:'none', boxSizing:'border-box' }}
+        />
+      </div>
+
+      {error && <div style={{ fontSize:13, color:'#e06060', fontFamily:font, marginBottom:14, textAlign:'center' }}>{error}</div>}
+
+      <button onClick={search} disabled={!input.trim()||loading} style={{ width:'100%', background:input.trim()?`linear-gradient(135deg,${I.color},${I.colorDeep})`:'#ddd', color:'#fff', border:'none', borderRadius:999, padding:'14px', fontSize:15, fontWeight:700, cursor:input.trim()?'pointer':'default', fontFamily:font, boxShadow:input.trim()?`0 4px 16px ${I.color}44`:'none', marginBottom:20 }}>
+        {loading ? '検索中...' : 'カルテを開く'}
+      </button>
+
+      <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'14px 16px', width:'100%', fontSize:12, color:'#7a5f66', fontFamily:font, lineHeight:1.8 }}>
+        💡 マイIDはスタッフから施術後に<br/>お渡しするカードに記載されています
+      </div>
+    </div>
+  )
+}
 
 // ── Passcode Gate ──────────────────────────────────────────────────────────────
 function PasscodeGate({ client, I, onSuccess }) {
@@ -76,11 +126,9 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
         <div style={{ width:40, height:5, background:'#edd8de', borderRadius:3, margin:'0 auto 20px' }} />
         <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', marginBottom:4, fontFamily:fontAlt }}>写真を追加</div>
         <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font, marginBottom:20 }}>{record.date}　{(record.menu||[]).join('・')}</div>
-
         <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:12, padding:'11px 14px', marginBottom:18, fontSize:12, color:I.colorDeep, fontFamily:font }}>
           📌 追加した写真はスタッフと共有されます
         </div>
-
         {previews.length > 0 ? (
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
             {previews.map((src,i)=>(
@@ -94,13 +142,11 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
           </div>
         )}
         <input ref={ref} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handleFile} />
-
         {previews.length > 0 && (
           <button onClick={()=>ref.current?.click()} style={{ background:'none', border:`1.5px solid ${I.colorBorder}`, borderRadius:999, padding:'8px 16px', fontSize:12, color:'#b89ca4', cursor:'pointer', fontFamily:font, marginBottom:16, width:'100%' }}>
             別の写真を選び直す
           </button>
         )}
-
         <button onClick={upload} disabled={!files.length||loading} style={{ width:'100%', background:files.length?`linear-gradient(135deg,${I.color},${I.colorDeep})`:'#ddd', color:'#fff', border:'none', borderRadius:999, padding:'13px', fontSize:15, fontWeight:700, cursor:files.length?'pointer':'default', fontFamily:font, marginBottom:10 }}>
           {loading ? 'アップロード中...' : 'アップロードする'}
         </button>
@@ -112,29 +158,29 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
 
 // ── Client App ─────────────────────────────────────────────────────────────────
 export default function ClientApp() {
-  // URLパラメータからサロンとQRIDを取得
   const params  = new URLSearchParams(window.location.search)
   const salonId = params.get('salon') || 'hair'
-  const qrId    = params.get('qr')
+  const urlQrId = params.get('qr')   // URLに qr= がある場合
   const I       = INDUSTRIES[salonId] || INDUSTRIES.hair
 
   const [client, setClient]       = useState(null)
+  const [qrId, setQrId]           = useState(urlQrId) // ID入力 or URL経由
   const [records, setRecords]     = useState([])
   const [loggedIn, setLoggedIn]   = useState(false)
-  const [loading, setLoading]     = useState(true)
+  const [loading, setLoading]     = useState(!!urlQrId) // URLにqrがある時だけloading
   const [view, setView]           = useState('passcode')
   const [selRecord, setSelRecord] = useState(null)
   const [addPhoto, setAddPhoto]   = useState(null)
   const [photoViewer, setPhotoViewer] = useState(null)
 
-  // QRIDからお客様情報を取得
+  // QRIDからお客様情報を取得（URL経由）
   useEffect(() => {
-    if (!qrId) { setLoading(false); return }
-    getClientByQrId(qrId).then(c => {
+    if (!urlQrId) return
+    getClientByQrId(urlQrId).then(c => {
       setClient(c)
       setLoading(false)
     })
-  }, [qrId])
+  }, [urlQrId])
 
   // ログイン後に施術記録をリアルタイム取得
   useEffect(() => {
@@ -152,15 +198,13 @@ export default function ClientApp() {
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', fontFamily:font, color:'#b89ca4' }}>読み込み中...</div>
   )
 
-  if (!qrId || !client) return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
-      <div style={{ fontSize:40, marginBottom:16 }}>🔗</div>
-      <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:8 }}>URLが正しくありません</div>
-      <div style={{ fontSize:13, color:'#b89ca4' }}>スタッフから受け取ったリンクを開いてください</div>
-    </div>
-  )
-
   const renderContent = () => {
+    // クライアント未確定 → ID入力画面（URLにqrなし、かつclientがない）
+    if (!client) return (
+      <QrIdInput I={I} onFound={c => { setClient(c); setQrId(c.qrId); }} />
+    )
+
+    // パスコード
     if (!loggedIn) return (
       <PasscodeGate client={client} I={I} onSuccess={()=>{setLoggedIn(true);setView('feed')}} />
     )
@@ -296,7 +340,7 @@ export default function ClientApp() {
         <div style={{ background:'#fff', borderBottom:'1px solid #edd8de', padding:'13px 18px 11px', position:'sticky', top:0, zIndex:100, boxShadow:`0 1px 10px ${I.color}12`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{I.name}</div>
           {loggedIn && (
-            <button onClick={()=>{setLoggedIn(false);setView('passcode')}} style={{ background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'6px 14px', fontSize:12, color:'#b89ca4', cursor:'pointer', fontFamily:font, fontWeight:600 }}>ロック</button>
+            <button onClick={()=>{setLoggedIn(false);setClient(null);setQrId(null);setRecords([]);setView('passcode')}} style={{ background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'6px 14px', fontSize:12, color:'#b89ca4', cursor:'pointer', fontFamily:font, fontWeight:600 }}>ロック</button>
           )}
         </div>
 
