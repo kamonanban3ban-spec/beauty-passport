@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'　
 import { INDUSTRIES } from '../industries'
 import { getClientByQrId, subscribeRecords, addClientPhotos } from '../firebase/db'
 
