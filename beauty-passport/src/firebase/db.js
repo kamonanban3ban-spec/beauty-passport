@@ -5,30 +5,8 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc,
   getDocs, getDoc, query, where, orderBy, onSnapshot, serverTimestamp,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db, storage } from './config'
-
-// ── データ構造 ────────────────────────────────────────
-// Firestore:
-//   /clients/{clientId}
-//     salon:    "hair" | "nail" | "lash"
-//     name:     "田中 さくら"
-//     kana:     "タナカ サクラ"
-//     phone:    "090-..."
-//     note:     "頭皮敏感..."
-//     passcode: "1234"
-//     qrId:     "hp_sakura01"  (ユニークID)
-//     createdAt: timestamp
-//
-//   /clients/{clientId}/records/{recordId}
-//     date:     "2026-03-15"
-//     menu:     ["ブリーチ", "カラー"]
-//     salon:    "Hair Salon Mika"
-//     memo:     "..."
-//     photos:   ["https://storage.url/..."]  (Storage URL)
-//     clientPhotos: ["https://..."]
-//     shared:   true
-//     createdAt: timestamp
 
 // ── お客様一覧を取得（リアルタイム）─────────────────
 export function subscribeClients(salon, callback) {
@@ -101,7 +79,7 @@ export async function uploadPhoto(file, path) {
   return await getDownloadURL(snap.ref)
 }
 
-// ── スタッフが写真を追加（Storageにアップ → URLをFirestoreに保存）
+// ── スタッフが写真を追加
 export async function addStaffPhotos(clientId, recordId, files) {
   const urls = await Promise.all(
     files.map((file, i) =>
@@ -127,4 +105,22 @@ export async function addClientPhotos(clientId, recordId, files) {
   const existing = snap.data().clientPhotos || []
   await updateDoc(recordRef, { clientPhotos: [...existing, ...urls] })
   return urls
+}
+
+// ── お客様が写真を削除
+export async function deleteClientPhoto(clientId, recordId, photoUrl) {
+  // FirestoreからURLを削除
+  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
+  const snap = await getDoc(recordRef)
+  const existing = snap.data().clientPhotos || []
+  const updated = existing.filter(url => url !== photoUrl)
+  await updateDoc(recordRef, { clientPhotos: updated })
+
+  // StorageからファイルをURL経由で削除
+  try {
+    const storageRef = ref(storage, photoUrl)
+    await deleteObject(storageRef)
+  } catch(e) {
+    // Storage削除に失敗しても続行
+  }
 }
