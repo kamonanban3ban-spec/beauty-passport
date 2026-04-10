@@ -79,9 +79,7 @@ function LoginForm({ I, onSuccess }) {
         {loading?'ログイン中...':'ログイン'}
       </button>
 
-      <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'14px 16px', width:'100%', fontSize:12, color:'#7a5f66', fontFamily:font, lineHeight:1.8 }}>
-        💡 IDとパスワードはスタッフから<br/>お渡しするカードに記載されています
-      </div>
+
     </div>
   )
 }
