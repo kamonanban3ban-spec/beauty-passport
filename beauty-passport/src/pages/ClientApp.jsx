@@ -40,7 +40,6 @@ function QrIdInput({ I, onFound }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'52px 28px', justifyContent:'center', minHeight:'80vh' }}>
-      <div style={{ fontSize:44, marginBottom:16 }}>💆</div>
       <div style={{ fontSize:22, fontWeight:700, color:'#2d2028', marginBottom:6, fontFamily:fontAlt }}>{I.name}</div>
       <div style={{ fontSize:13, color:'#b89ca4', marginBottom:40, fontFamily:font }}>お客様IDを入力してください</div>
 
