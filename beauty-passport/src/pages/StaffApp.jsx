@@ -119,10 +119,10 @@ export default function StaffApp() {
   const handleAddClient = async () => {
     if (!nc.name) return
     setLoading(true)
-    await addClient(salon, { ...nc })
+    const docRef = await addClient(salon, { ...nc })
     setNc({ name:'', kana:'', phone:'', note:'' })
-    setView('list')
     setLoading(false)
+    setView('list')
   }
 
   const handleAddRecord = async () => {
