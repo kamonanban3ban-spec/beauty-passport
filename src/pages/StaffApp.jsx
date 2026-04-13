@@ -96,7 +96,7 @@ export default function StaffApp() {
   const [photoViewer, setPhotoViewer] = useState(null)
 
   // forms
-  const [nc, setNc] = useState({ name:'', kana:'', phone:'', note:'', passcode:'' })
+  const [nc, setNc] = useState({ name:'', kana:'', phone:'', note:'' })
   const [nr, setNr] = useState({ date:new Date().toISOString().slice(0,10), menu:[], salonName:'', memo:'', shared:false })
   const [newPhotos, setNewPhotos] = useState([])
 
@@ -119,10 +119,10 @@ export default function StaffApp() {
   const handleAddClient = async () => {
     if (!nc.name) return
     setLoading(true)
-    await addClient(salon, { ...nc, passcode: nc.passcode || '0000' })
-    setNc({ name:'', kana:'', phone:'', note:'', passcode:'' })
-    setView('list')
+    const docRef = await addClient(salon, { ...nc })
+    setNc({ name:'', kana:'', phone:'', note:'' })
     setLoading(false)
+    setView('list')
   }
 
   const handleAddRecord = async () => {
@@ -152,6 +152,7 @@ export default function StaffApp() {
     if (view === 'addClient') return (
       <div style={{ padding:'16px 18px 100px' }}>
         <Btn variant="outline" color="#b89ca4" small onClick={()=>setView('list')} style={{ marginBottom:22 }}>← キャンセル</Btn>
+              <Btn color={I.color} onClick={handleAddClient}>{loading ? '登録中...' : '登録する'}</Btn>
         <div style={{ fontSize:20, fontWeight:700, color:'#2d2028', marginBottom:20, fontFamily:fontAlt }}>新規お客様登録</div>
         {[['お名前','name','田中 さくら'],['ふりがな','kana','タナカ サクラ'],['電話番号','phone','090-0000-0000']].map(([label,key,ph])=>(
           <div key={key} style={{ marginBottom:14 }}>
@@ -165,40 +166,6 @@ export default function StaffApp() {
           <textarea placeholder="アレルギー・頭皮状態など" value={nc.note} onChange={e=>setNc(p=>({...p,note:e.target.value}))}
             style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:80, marginBottom:0 }} />
         </div>
-        <div style={{ marginBottom:22 }}>
-          <SLabel>パスコード（4桁）</SLabel>
-          <input type="password" inputMode="numeric" maxLength={4} placeholder="例：1234" value={nc.passcode} onChange={e=>setNc(p=>({...p,passcode:e.target.value}))}
-            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:15, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box' }} />
-        </div>
-        <Btn color={I.color} onClick={handleAddClient}>{loading ? '登録中...' : '登録する'}</Btn>
-      </div>
-    )
-
-    if (view === 'addRecord' && selClient) return (
-      <div style={{ padding:'16px 18px 100px' }}>
-        <Btn variant="outline" color="#b89ca4" small onClick={()=>setView('profile')} style={{ marginBottom:20 }}>← キャンセル</Btn>
-        <div style={{ fontSize:20, fontWeight:700, color:'#2d2028', marginBottom:4, fontFamily:fontAlt }}>施術記録を追加</div>
-        <div style={{ fontSize:13, color:'#b89ca4', fontFamily:font, marginBottom:22 }}>{selClient.name}</div>
-
-        <SLabel>📷 施術写真</SLabel>
-        <PhotoUploader onChange={setNewPhotos} color={I.color} />
-        {newPhotos.length > 0 && <div style={{ fontSize:12, color:I.color, fontFamily:font, marginTop:8, marginBottom:4 }}>{newPhotos.length}枚選択中</div>}
-
-        <div style={{ marginTop:16, marginBottom:14 }}>
-          <SLabel>📅 施術日</SLabel>
-          <input type="date" value={nr.date} onChange={e=>setNr(p=>({...p,date:e.target.value}))}
-            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:15, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box' }} />
-        </div>
-
-        <div style={{ marginBottom:14 }}>
-          <SLabel>💅 メニュー（複数可）</SLabel>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-            {I.menus.map(m=>{const sel=nr.menu.includes(m);return(
-              <button key={m} onClick={()=>setNr(p=>({...p,menu:sel?p.menu.filter(x=>x!==m):[...p.menu,m]}))}
-                style={{ background:sel?I.color:'#fff', color:sel?'#fff':'#7a5f66', border:`1.5px solid ${sel?I.color:'#edd8de'}`, borderRadius:999, padding:'7px 15px', fontSize:13, cursor:'pointer', fontFamily:font, fontWeight:500 }}>{m}</button>
-            )})}
-          </div>
-        </div>
 
         <div style={{ marginBottom:14 }}>
           <SLabel>🏪 {I.salonLabel}</SLabel>
@@ -207,7 +174,25 @@ export default function StaffApp() {
         </div>
 
         <div style={{ marginBottom:14 }}>
-          <SLabel>📝 メモ</SLabel>
+          
+                <div style={{ marginBottom:14 }}>
+                  <SLabel>メニュー（複数選択可）</SLabel>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:6 }}>
+                    {['カット','カラー','パーマ','縮毛矯正','ブリーチ1回','ブリーチ2回','ブリーチ3回','ハイライト','ローライト','トーンダウン'].map(m => {
+                      const selected = (nr.menu||[]).includes(m)
+                      return (
+                        <button key={m} onClick={()=>setNr(p=>({ ...p, menu: selected ? p.menu.filter(x=>x!==m) : [...(p.menu||[]),m] }))}
+                          style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, cursor:'pointer',
+                            background: selected ? I.color : '#fff',
+                            color: selected ? '#fff' : '#b89ca4',
+                            border: selected ? '1.5px solid ' + I.color : '1.5px solid #edd8de' }}>
+                          {m}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+<SLabel>📝 メモ</SLabel>
           <textarea placeholder={I.memoPlaceholder} value={nr.memo} onChange={e=>setNr(p=>({...p,memo:e.target.value}))}
             style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:84 }} />
         </div>
