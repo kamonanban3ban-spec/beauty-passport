@@ -173,7 +173,25 @@ export default function StaffApp() {
         </div>
 
         <div style={{ marginBottom:14 }}>
-          <SLabel>📝 メモ</SLabel>
+          
+                <div style={{ marginBottom:14 }}>
+                  <SLabel>メニュー（複数選択可）</SLabel>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:6 }}>
+                    {['カット','カラー','パーマ','縮毛矯正','ブリーチ1回','ブリーチ2回','ブリーチ3回','ハイライト','ローライト','トーンダウン'].map(m => {
+                      const selected = (nr.menu||[]).includes(m)
+                      return (
+                        <button key={m} onClick={()=>setNr(p=>({ ...p, menu: selected ? p.menu.filter(x=>x!==m) : [...(p.menu||[]),m] }))}
+                          style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, cursor:'pointer',
+                            background: selected ? I.color : '#fff',
+                            color: selected ? '#fff' : '#b89ca4',
+                            border: selected ? '1.5px solid ' + I.color : '1.5px solid #edd8de' }}>
+                          {m}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+<SLabel>📝 メモ</SLabel>
           <textarea placeholder={I.memoPlaceholder} value={nr.memo} onChange={e=>setNr(p=>({...p,memo:e.target.value}))}
             style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:84 }} />
         </div>
