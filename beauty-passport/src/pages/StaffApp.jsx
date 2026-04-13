@@ -152,6 +152,7 @@ export default function StaffApp() {
     if (view === 'addClient') return (
       <div style={{ padding:'16px 18px 100px' }}>
         <Btn variant="outline" color="#b89ca4" small onClick={()=>setView('list')} style={{ marginBottom:22 }}>← キャンセル</Btn>
+              <Btn color={I.color} onClick={handleAddClient}>{loading ? '登録中...' : '登録する'}</Btn>
         <div style={{ fontSize:20, fontWeight:700, color:'#2d2028', marginBottom:20, fontFamily:fontAlt }}>新規お客様登録</div>
         {[['お名前','name','田中 さくら'],['ふりがな','kana','タナカ サクラ'],['電話番号','phone','090-0000-0000']].map(([label,key,ph])=>(
           <div key={key} style={{ marginBottom:14 }}>
