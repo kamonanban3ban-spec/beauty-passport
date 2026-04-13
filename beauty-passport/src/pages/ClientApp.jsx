@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { INDUSTRIES } from '../industries'
-import { getClientByQrId, subscribeRecords, addClientPhotos } from '../firebase/db'
+import { getClientByQrId, subscribeRecords, addClientPhotos, deleteClientPhoto } from '../firebase/db'
 
 const font    = "'DM Sans', 'Noto Sans JP', sans-serif"
 const fontAlt = "'Playfair Display', 'Noto Serif JP', serif"
@@ -16,93 +16,10 @@ const MenuTag = ({ children, color }) => (
   <span style={{ background:color+'18', color, border:`1px solid ${color}44`, borderRadius:999, fontSize:12, fontWeight:600, padding:'4px 12px', fontFamily:font, whiteSpace:'nowrap' }}>{children}</span>
 )
 
-// ── ID入力画面（受付QR用）─────────────────────────────────────────────────────
-function QrIdInput({ I, onFound }) {
-  const [input, setInput] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const search = async () => {
-    const id = input.trim()
-    if (!id) return
-    setLoading(true)
-    setError('')
-    const client = await getClientByQrId(id)
-    setLoading(false)
-    if (client) {
-      onFound(client)
-    } else {
-      setError('IDが見つかりません。スタッフに確認してください。')
-    }
-  }
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'52px 28px', justifyContent:'center', minHeight:'80vh' }}>
-      <div style={{ fontSize:48, marginBottom:20 }}>💅</div>
-      <div style={{ fontSize:24, fontWeight:700, color:'#2d2028', marginBottom:8, fontFamily:fontAlt, textAlign:'center' }}>{I.name}</div>
-      <div style={{ fontSize:13, color:'#b89ca4', marginBottom:36, fontFamily:font, textAlign:'center', lineHeight:1.8 }}>
-        スタッフから受け取った<br/>マイIDを入力してください
-      </div>
-
-      <div style={{ width:'100%', marginBottom:12 }}>
-        <input
-          placeholder="例：hair_abc12345"
-          value={input}
-          onChange={e=>{ setInput(e.target.value); setError('') }}
-          style={{ width:'100%', background:'#fff', border:`1.5px solid ${I.colorBorder}`, borderRadius:14, color:'#2d2028', fontSize:15, padding:'13px 16px', fontFamily:font, outline:'none', boxSizing:'border-box' }}
-        />
-      </div>
-
-      {error && <div style={{ fontSize:13, color:'#e06060', fontFamily:font, marginBottom:14, textAlign:'center' }}>{error}</div>}
-
-      <button onClick={search} disabled={!input.trim()||loading} style={{ width:'100%', background:input.trim()?`linear-gradient(135deg,${I.color},${I.colorDeep})`:'#ddd', color:'#fff', border:'none', borderRadius:999, padding:'14px', fontSize:15, fontWeight:700, cursor:input.trim()?'pointer':'default', fontFamily:font, boxShadow:input.trim()?`0 4px 16px ${I.color}44`:'none', marginBottom:20 }}>
-        {loading ? '検索中...' : 'カルテを開く'}
-      </button>
-
-      <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'14px 16px', width:'100%', fontSize:12, color:'#7a5f66', fontFamily:font, lineHeight:1.8 }}>
-        💡 マイIDはスタッフから施術後に<br/>お渡しするカードに記載されています
-      </div>
-    </div>
-  )
-}
-
-// ── Passcode Gate ──────────────────────────────────────────────────────────────
-function PasscodeGate({ client, I, onSuccess }) {
-  const [input, setInput] = useState('')
-  const [shake, setShake] = useState(false)
-  const [ok, setOk]       = useState(false)
-  const tryCode = code => {
-    if (code===client.passcode) { setOk(true); setTimeout(onSuccess,400) }
-    else if (code.length===4)  { setShake(true); setTimeout(()=>{setShake(false);setInput('')},550) }
-  }
-  const press = d => { const n=input+d; setInput(n); if(n.length===4) tryCode(n) }
-  return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'52px 28px', justifyContent:'center', minHeight:'80vh' }}>
-      <Avatar name={client.name} color={I.color} size={72} />
-      <div style={{ fontSize:22, fontWeight:700, color:'#2d2028', marginTop:18, marginBottom:4, fontFamily:fontAlt }}>{client.name}</div>
-      <div style={{ fontSize:13, color:'#b89ca4', marginBottom:44, fontFamily:font }}>パスコードを入力してください</div>
-      <div style={{ display:'flex', gap:16, marginBottom:48, animation:shake?'shake 0.5s':'none' }}>
-        {[0,1,2,3].map(i=>(
-          <div key={i} style={{ width:18, height:18, borderRadius:'50%', background:i<input.length?(ok?'#7bbf9a':I.color):'transparent', border:`2px solid ${i<input.length?(ok?'#7bbf9a':I.color):'#edd8de'}`, transition:'all 0.15s' }} />
-        ))}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,72px)', gap:14, marginBottom:28 }}>
-        {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((d,i)=>(
-          <button key={i} onClick={()=>d==='⌫'?setInput(p=>p.slice(0,-1)):d!==''&&press(String(d))}
-            style={{ width:72, height:72, borderRadius:'50%', fontSize:d==='⌫'?22:24, background:d===''?'transparent':I.colorLight, border:d===''?'none':`1.5px solid ${I.colorBorder}`, color:'#2d2028', cursor:d===''?'default':'pointer', fontFamily:font, fontWeight:500 }}>
-            {d}
-          </button>
-        ))}
-      </div>
-      <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}`}</style>
-    </div>
-  )
-}
-
-// ── Add Photo Modal ─────────────────────────────────────────────────────────────
+// ── 写真追加モーダル ────────────────────────────────────────────────────────────
 function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
   const ref = useRef()
-  const [files, setFiles]   = useState([])
+  const [files, setFiles]     = useState([])
   const [previews, setPreviews] = useState([])
   const [loading, setLoading]   = useState(false)
 
@@ -131,7 +48,7 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
         </div>
         {previews.length > 0 ? (
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
-            {previews.map((src,i)=>(
+            {previews.map((src,i) => (
               <img key={i} src={src} alt="" style={{ width:84, height:84, objectFit:'cover', borderRadius:12, border:`1.5px solid ${I.colorBorder}` }} />
             ))}
           </div>
@@ -156,181 +73,187 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
   )
 }
 
-// ── Client App ─────────────────────────────────────────────────────────────────
+// ── メイン ─────────────────────────────────────────────────────────────────────
 export default function ClientApp() {
   const params  = new URLSearchParams(window.location.search)
   const salonId = params.get('salon') || 'hair'
-  const urlQrId = params.get('qr')   // URLに qr= がある場合
+  const urlQrId = params.get('qr')
   const I       = INDUSTRIES[salonId] || INDUSTRIES.hair
 
   const [client, setClient]       = useState(null)
-  const [qrId, setQrId]           = useState(urlQrId) // ID入力 or URL経由
   const [records, setRecords]     = useState([])
-  const [loggedIn, setLoggedIn]   = useState(false)
-  const [loading, setLoading]     = useState(!!urlQrId) // URLにqrがある時だけloading
-  const [view, setView]           = useState('passcode')
+  const [loading, setLoading]     = useState(!!urlQrId)
+  const [view, setView]           = useState('feed')
   const [selRecord, setSelRecord] = useState(null)
   const [addPhoto, setAddPhoto]   = useState(null)
   const [photoViewer, setPhotoViewer] = useState(null)
-  const [showQr, setShowQr] = useState(false)
 
-  // QRIDからお客様情報を取得（URL経由）
+  // qrIdからお客様情報を取得
   useEffect(() => {
-    if (!urlQrId) return
+    if (!urlQrId) { setLoading(false); return }
     getClientByQrId(urlQrId).then(c => {
       setClient(c)
       setLoading(false)
     })
   }, [urlQrId])
 
-  // ログイン後に施術記録をリアルタイム取得
+  // 施術記録をリアルタイム取得
   useEffect(() => {
-    if (!loggedIn || !client) return
+    if (!client) return
     const unsub = subscribeRecords(client.id, recs => {
       setRecords(recs.filter(r => r.shared))
     })
     return unsub
-  }, [loggedIn, client])
+  }, [client])
 
   const sharedRecs    = records
-  const allGridPhotos = sharedRecs.flatMap(r=>[...(r.photos||[]),...(r.clientPhotos||[])].map(p=>({photo:p,record:r})))
+  const allGridPhotos = sharedRecs.flatMap(r =>
+    [...(r.photos||[]),...(r.clientPhotos||[])].map(p => ({ photo:p, record:r }))
+  )
 
+  // ローディング中
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', fontFamily:font, color:'#b89ca4' }}>読み込み中...</div>
   )
 
-  const renderContent = () => {
-    // クライアント未確定 → ID入力画面（URLにqrなし、かつclientがない）
-    if (!client) return (
-      <QrIdInput I={I} onFound={c => { setClient(c); setQrId(c.qrId); }} />
-    )
+  // qrIdなし or お客様が見つからない
+  if (!urlQrId || !client) return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
+      <img src="/logo.svg" alt="logo" style={{ width:80, height:80, borderRadius:16, marginBottom:24 }} />
+      <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:8 }}>リンクが正しくありません</div>
+      <div style={{ fontSize:13, color:'#b89ca4' }}>スタッフから受け取ったリンクを開いてください</div>
+    </div>
+  )
 
-    // パスコード
-    if (!loggedIn) return (
-      <PasscodeGate client={client} I={I} onSuccess={()=>{setLoggedIn(true);setView('feed')}} />
-    )
-
-    if (view==='detail' && selRecord) {
-      const allPhotos = [...(selRecord.photos||[]),...(selRecord.clientPhotos||[])]
-      return (
-        <div style={{ paddingBottom:80 }}>
-          {allPhotos.length > 0 ? (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
-              {allPhotos.map((src,i)=>(
-                <div key={i} onClick={()=>setPhotoViewer({photos:allPhotos,idx:i})} style={{ paddingTop:'100%', position:'relative', cursor:'pointer', background:I.colorPale }}>
-                  <div style={{ position:'absolute', inset:0 }}><img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ width:'100%', paddingTop:'50%', position:'relative', background:I.colorPale }}>
-              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:I.color, fontFamily:font, fontSize:13 }}>
-                <span style={{ fontSize:32, marginBottom:6 }}>📷</span>写真なし
-              </div>
-            </div>
-          )}
-          <div style={{ padding:'16px 18px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-              <button onClick={()=>setView('feed')} style={{ background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'7px 16px', fontSize:12, fontWeight:600, color:'#b89ca4', cursor:'pointer', fontFamily:font }}>← 戻る</button>
-              <button onClick={()=>setAddPhoto(selRecord)} style={{ background:`linear-gradient(135deg,${I.color},${I.colorDeep})`, border:'none', borderRadius:999, padding:'8px 18px', fontSize:12, fontWeight:700, color:'#fff', cursor:'pointer', fontFamily:font, display:'flex', alignItems:'center', gap:5, boxShadow:`0 3px 10px ${I.color}44` }}>
-                <span>📷</span> 写真を追加
-              </button>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
-              <Avatar name={client.name} color={I.color} size={38} />
-              <div>
-                <div style={{ fontSize:15, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
-                <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>📅 {selRecord.date}</div>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
-              {(selRecord.menu||[]).map(m=><MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'11px 13px' }}>
-                <div style={{ fontSize:10, fontWeight:600, color:I.color, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:3, fontFamily:font }}>📅 日付</div>
-                <div style={{ fontSize:14, color:'#2d2028', fontFamily:font, fontWeight:600 }}>{selRecord.date}</div>
-              </div>
-              <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'11px 13px' }}>
-                <div style={{ fontSize:10, fontWeight:600, color:I.color, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:3, fontFamily:font }}>🏪 店名</div>
-                <div style={{ fontSize:13, color:'#2d2028', fontFamily:font, fontWeight:600 }}>{selRecord.salonName||'—'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    // feed
+  // 詳細ビュー
+  const renderDetail = () => {
+    if (!selRecord) return null
+    const allPhotos = [...(selRecord.photos||[]),...(selRecord.clientPhotos||[])]
     return (
       <div style={{ paddingBottom:80 }}>
-        <div style={{ background:'#fff', borderBottom:'1px solid #edd8de', padding:'16px 18px 14px' }}>
-          <div style={{ display:'flex', gap:18, alignItems:'center' }}>
-            <Avatar name={client.name} color={I.color} size={68} />
-            <div>
-              <div style={{ fontSize:22, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
-              <div style={{ display:'flex', gap:18, marginTop:10 }}>
-                <div style={{ textAlign:'center' }}><div style={{ fontSize:18, fontWeight:700, fontFamily:fontAlt }}>{sharedRecs.length}</div><div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>施術</div></div>
-                <div style={{ textAlign:'center' }}><div style={{ fontSize:18, fontWeight:700, fontFamily:fontAlt }}>{allGridPhotos.length}</div><div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>写真</div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {allGridPhotos.length > 0 && (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2, marginBottom:2 }}>
-            {allGridPhotos.map(({photo,record},i)=>(
-              <div key={i} onClick={()=>{setSelRecord(record);setView('detail')}} style={{ paddingTop:'100%', position:'relative', cursor:'pointer', background:I.colorPale }}>
-                <div style={{ position:'absolute', inset:0 }}><img src={photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
+        {allPhotos.length > 0 ? (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
+            {allPhotos.map((src,i) => (
+              <div key={i} onClick={()=>setPhotoViewer({photos:allPhotos,idx:i})} style={{ paddingTop:'100%', position:'relative', cursor:'pointer', background:I.colorPale }}>
+                <div style={{ position:'absolute', inset:0 }}><img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
               </div>
             ))}
           </div>
-        )}
-
-        <div style={{ borderTop: allGridPhotos.length>0?`2px solid #edd8de`:'none' }}>
-          {sharedRecs.length===0 && (
-            <div style={{ textAlign:'center', color:'#b89ca4', padding:'80px 0', fontFamily:font }}>
-              <div style={{ fontSize:40, marginBottom:10 }}>📷</div>まだ施術記録がありません
+        ) : (
+          <div style={{ width:'100%', paddingTop:'50%', position:'relative', background:I.colorPale }}>
+            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:I.color, fontFamily:font, fontSize:13 }}>
+              <span style={{ fontSize:32, marginBottom:6 }}>📷</span>写真なし
             </div>
-          )}
-          {sharedRecs.map(r=>{
-            const photos=[...(r.photos||[]),...(r.clientPhotos||[])]
-            return (
-              <div key={r.id} style={{ background:'#fff', borderBottom:'1px solid #f5e6ea' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px 10px' }}>
-                  <Avatar name={client.name} color={I.color} size={34} />
-                  <div style={{ flex:1, cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
-                    <div style={{ fontSize:14, fontWeight:600, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
-                    <div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>{r.salonName}　{r.date}</div>
-                  </div>
-                  <div style={{ display:'flex', gap:4 }}>
-                    {(r.menu||[]).slice(0,2).map(m=><MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
-                  </div>
-                </div>
-                {photos.length>0 ? (
-                  <div style={{ width:'100%', paddingTop:'100%', position:'relative', cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
-                    <div style={{ position:'absolute', inset:0 }}><img src={photos[0]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
-                    {photos.length>1&&<div style={{ position:'absolute', top:10, right:10, background:'rgba(0,0,0,0.45)', color:'#fff', borderRadius:999, fontSize:11, fontFamily:font, padding:'3px 8px' }}>1/{photos.length}</div>}
-                  </div>
-                ) : (
-                  <div style={{ width:'100%', paddingTop:'50%', position:'relative', background:I.colorPale, cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
-                    <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:I.color, fontFamily:font, fontSize:13, flexDirection:'column' }}>
-                      <span style={{ fontSize:24, marginBottom:4 }}>📷</span>写真なし
-                    </div>
-                  </div>
-                )}
-                <div style={{ padding:'10px 14px 14px', cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
-                  <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-                    {(r.menu||[]).map(m=><MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          </div>
+        )}
+        <div style={{ padding:'16px 18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+            <button onClick={()=>setView('feed')} style={{ background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'7px 16px', fontSize:12, fontWeight:600, color:'#b89ca4', cursor:'pointer', fontFamily:font }}>← 戻る</button>
+            <button onClick={()=>setAddPhoto(selRecord)} style={{ background:`linear-gradient(135deg,${I.color},${I.colorDeep})`, border:'none', borderRadius:999, padding:'8px 18px', fontSize:12, fontWeight:700, color:'#fff', cursor:'pointer', fontFamily:font, display:'flex', alignItems:'center', gap:5, boxShadow:`0 3px 10px ${I.color}44` }}>
+              📷 写真を追加
+            </button>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
+            <Avatar name={client.name} color={I.color} size={38} />
+            <div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
+              <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>📅 {selRecord.date}</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+            {(selRecord.menu||[]).map(m => <MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'11px 13px' }}>
+              <div style={{ fontSize:10, fontWeight:600, color:I.color, letterSpacing:'0.07em', marginBottom:3, fontFamily:font }}>日付</div>
+              <div style={{ fontSize:14, color:'#2d2028', fontFamily:font, fontWeight:600 }}>{selRecord.date}</div>
+            </div>
+            <div style={{ background:I.colorPale, border:`1px solid ${I.colorBorder}`, borderRadius:14, padding:'11px 13px' }}>
+              <div style={{ fontSize:10, fontWeight:600, color:I.color, letterSpacing:'0.07em', marginBottom:3, fontFamily:font }}>サロン</div>
+              <div style={{ fontSize:13, color:'#2d2028', fontFamily:font, fontWeight:600 }}>{selRecord.salonName||'—'}</div>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
+
+  // フィードビュー
+  const renderFeed = () => (
+    <div style={{ paddingBottom:80 }}>
+      <div style={{ background:'#fff', borderBottom:'1px solid #edd8de', padding:'16px 18px 14px' }}>
+        <div style={{ display:'flex', gap:18, alignItems:'center' }}>
+          <Avatar name={client.name} color={I.color} size={68} />
+          <div>
+            <div style={{ fontSize:22, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
+            <div style={{ display:'flex', gap:18, marginTop:10 }}>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:18, fontWeight:700, fontFamily:fontAlt }}>{sharedRecs.length}</div>
+                <div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>施術</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:18, fontWeight:700, fontFamily:fontAlt }}>{allGridPhotos.length}</div>
+                <div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>写真</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {allGridPhotos.length > 0 && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2, marginBottom:2 }}>
+          {allGridPhotos.map(({photo,record},i) => (
+            <div key={i} onClick={()=>{setSelRecord(record);setView('detail')}} style={{ paddingTop:'100%', position:'relative', cursor:'pointer', background:I.colorPale }}>
+              <div style={{ position:'absolute', inset:0 }}><img src={photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ borderTop: allGridPhotos.length>0?`2px solid #edd8de`:'none' }}>
+        {sharedRecs.length===0 && (
+          <div style={{ textAlign:'center', color:'#b89ca4', padding:'80px 0', fontFamily:font }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>📷</div>
+            まだ施術記録がありません
+          </div>
+        )}
+        {sharedRecs.map(r => {
+          const photos = [...(r.photos||[]),...(r.clientPhotos||[])]
+          return (
+            <div key={r.id} style={{ background:'#fff', borderBottom:'1px solid #f5e6ea' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px 10px' }}>
+                <Avatar name={client.name} color={I.color} size={34} />
+                <div style={{ flex:1, cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
+                  <div style={{ fontSize:14, fontWeight:600, color:'#2d2028', fontFamily:fontAlt }}>{client.name}</div>
+                  <div style={{ fontSize:11, color:'#b89ca4', fontFamily:font }}>{r.salonName}　{r.date}</div>
+                </div>
+                <div style={{ display:'flex', gap:4 }}>
+                  {(r.menu||[]).slice(0,2).map(m => <MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
+                </div>
+              </div>
+              {photos.length>0 ? (
+                <div style={{ width:'100%', paddingTop:'100%', position:'relative', cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
+                  <div style={{ position:'absolute', inset:0 }}><img src={photos[0]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
+                  {photos.length>1 && <div style={{ position:'absolute', top:10, right:10, background:'rgba(0,0,0,0.45)', color:'#fff', borderRadius:999, fontSize:11, fontFamily:font, padding:'3px 8px' }}>1/{photos.length}</div>}
+                </div>
+              ) : (
+                <div style={{ width:'100%', paddingTop:'50%', position:'relative', background:I.colorPale, cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
+                  <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:I.color, fontFamily:font, fontSize:13, flexDirection:'column' }}>
+                    <span style={{ fontSize:24, marginBottom:4 }}>📷</span>写真なし
+                  </div>
+                </div>
+              )}
+              <div style={{ padding:'10px 14px 14px', cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
+                <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+                  {(r.menu||[]).map(m => <MenuTag key={m} color={I.colorDeep}>{m}</MenuTag>)}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -338,47 +261,23 @@ export default function ClientApp() {
       <style>{`*{box-sizing:border-box;}body{margin:0;background:${I.bg};}button{-webkit-tap-highlight-color:transparent;}`}</style>
 
       <div style={{ fontFamily:font, background:I.bg, minHeight:'100vh', maxWidth:420, margin:'0 auto' }}>
-        <div style={{ background:'#fff', borderBottom:'1px solid #edd8de', padding:'13px 18px 11px', position:'sticky', top:0, zIndex:100, boxShadow:`0 1px 10px ${I.color}12`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ background:'#fff', borderBottom:'1px solid #edd8de', padding:'13px 18px 11px', position:'sticky', top:0, zIndex:100, boxShadow:`0 1px 10px ${I.color}12`, display:'flex', alignItems:'center' }}>
           <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{I.name}</div>
-          {loggedIn && (
-            <button onClick={()=>{setLoggedIn(false);setClient(null);setQrId(null);setRecords([]);setView('passcode')}} style={{ background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'6px 14px', fontSize:12, color:'#b89ca4', cursor:'pointer', fontFamily:font, fontWeight:600 }}>ロック</button>
-          )}
         </div>
 
-        {renderContent()}
+        {view==='detail' ? renderDetail() : renderFeed()}
       </div>
 
       {addPhoto && (
         <AddPhotoModal record={addPhoto} clientId={client.id} I={I}
           onDone={()=>setAddPhoto(null)} onClose={()=>setAddPhoto(null)} />
       )}
+
       {photoViewer && (
         <div style={{ position:'fixed', inset:0, background:'#000', zIndex:300, display:'flex', flexDirection:'column' }}>
           <button onClick={()=>setPhotoViewer(null)} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', color:'#fff', fontSize:30, cursor:'pointer', zIndex:10 }}>×</button>
           <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
             <img src={photoViewer.photos[photoViewer.idx]} alt="" style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' }} />
-          </div>
-        </div>
-      )}
-
-      {loggedIn && (
-        <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#fff', borderTop:'1px solid #edd8de', display:'flex', zIndex:100, boxShadow:'0 -4px 20px rgba(0,0,0,0.06)' }}>
-          <button onClick={()=>setView('feed')} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', padding:'10px 0', color: view==='feed' ? '#e8829a' : '#b89ca4', fontFamily:"'DM Sans', sans-serif", fontSize:10, fontWeight: view==='feed' ? 700 : 500 }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>ホーム</button>
-          <button onClick={()=>{ if(records.length===0) return; setAddPhoto(records[0]) }} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', padding:'10px 0', color:'#b89ca4', fontFamily:"'DM Sans', sans-serif", fontSize:10, fontWeight:500 }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="15" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 5l1.5-2h5L16 5"/></svg>写真を追加</button>
-          <button onClick={()=>setShowQr(true)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', padding:'10px 0', color:'#b89ca4', fontFamily:"'DM Sans', sans-serif", fontSize:10, fontWeight:500 }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>QRコード</button>
-        </div>
-      )}
-      {showQr && client && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(6px)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }} onClick={()=>setShowQr(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:'28px 28px 0 0', padding:'28px 24px 48px', width:'100%', maxWidth:420 }}>
-            <div style={{ width:40, height:5, background:'#edd8de', borderRadius:3, margin:'0 auto 24px' }} />
-            <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', marginBottom:4, fontFamily:"'Playfair Display', serif", textAlign:'center' }}>マイQRコード</div>
-            <div style={{ fontSize:12, color:'#b89ca4', marginBottom:24, textAlign:'center' }}>スタッフにこのQRを見せてください</div>
-            <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(client.qrId)}`} alt="QR" style={{ width:180, height:180, display:'block', border:'2px solid #edd8de', borderRadius:16, padding:16 }} />
-            </div>
-            <div style={{ textAlign:'center', fontSize:13, color:'#b89ca4', marginBottom:24 }}>{client.qrId}</div>
-            <button onClick={()=>setShowQr(false)} style={{ width:'100%', background:'none', border:'1.5px solid #edd8de', borderRadius:999, padding:'12px', fontSize:14, color:'#b89ca4', cursor:'pointer', fontWeight:600 }}>閉じる</button>
           </div>
         </div>
       )}
