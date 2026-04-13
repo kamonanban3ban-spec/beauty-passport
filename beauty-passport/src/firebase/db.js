@@ -12,7 +12,7 @@ import { db, storage } from './config'
 export function subscribeClients(salon, callback) {
   const q = query(
     collection(db, 'clients'),
-    where('salon', '==', salon),
+    where('registeredSalon', '==', salon),
     orderBy('createdAt', 'desc')
   )
   return onSnapshot(q, snap => {
@@ -25,7 +25,7 @@ export function subscribeClients(salon, callback) {
 export async function addClient(salon, data) {
   const qrId = `${salon}_${Math.random().toString(36).slice(2, 10)}`
   return await addDoc(collection(db, 'clients'), {
-    salon,
+    registeredSalon: salon,
     ...data,
     qrId,
     createdAt: serverTimestamp(),
