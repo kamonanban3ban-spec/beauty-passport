@@ -85,7 +85,8 @@ function QRModal({ record, client, I, onClose }) {
 
 // ── Staff App ──────────────────────────────────────────────────────────────────
 export default function StaffApp() {
-  const [salon, setSalon]             = useState('hair')
+  const urlSalon = new URLSearchParams(window.location.search).get('salon') || 'hair'
+  const [salon, setSalon]             = useState(urlSalon)
   const [clients, setClients]         = useState([])
   const [records, setRecords]         = useState([])
   const [view, setView]               = useState('list')
