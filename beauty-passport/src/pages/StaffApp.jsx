@@ -339,6 +339,14 @@ export default function StaffApp() {
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{I.name}</div>
             </div>
+            {/* 業種表示 */}
+            <div style={{ display:'flex', gap:4 }}>
+              {Object.values(INDUSTRIES).map(ind=>(
+                <button key={ind.id} style={{ padding:'5px 10px', background:salon===ind.id?ind.color:'transparent', color:salon===ind.id?'#fff':'#b89ca4', border:`1px solid ${salon===ind.id?ind.color:'#edd8de'}`, borderRadius:999, fontSize:11, cursor:'default', fontFamily:font, fontWeight:600 }}>
+                  {ind.id==='hair'?'Hair':ind.id==='nail'?'Nail':'Lash'}
+                </button>
+              ))}
+            </div>
 
           </div>
         </div>
