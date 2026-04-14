@@ -342,7 +342,7 @@ export default function StaffApp() {
             {/* 業種表示 */}
             <div style={{ display:'flex', gap:4 }}>
               {Object.values(INDUSTRIES).map(ind=>(
-                <button key={ind.id} style={{ padding:'5px 10px', background:salon===ind.id?ind.color:'transparent', color:salon===ind.id?'#fff':'#b89ca4', border:`1px solid ${salon===ind.id?ind.color:'#edd8de'}`, borderRadius:999, fontSize:11, cursor:'default', fontFamily:font, fontWeight:600 }}>
+                <button key={ind.id} onClick={() => setSalon(ind.id)} style={{ ... }}>
                   {ind.id==='hair'?'Hair':ind.id==='nail'?'Nail':'Lash'}
                 </button>
               ))}
