@@ -1,14 +1,8 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Firebase Firestore 操作まとめ
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-import {
-  collection, doc, addDoc, updateDoc, deleteDoc,
-  getDocs, getDoc, query, where, orderBy, onSnapshot, serverTimestamp,
-} from 'firebase/firestore'
+import { collection, addDoc, getDocs, getDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db, storage } from './config'
 
-// ── お客様一覧を取得（リアルタイム）─────────────────
+// ── お客様一覧を取得（リアルタイム）────────────────────────────────────
 export function subscribeClients(salon, callback) {
   const q = query(collection(db, 'clients'), where('registeredSalon', '==', salon), orderBy('createdAt', 'desc'))
   return onSnapshot(q, snap => {
@@ -18,10 +12,10 @@ export function subscribeClients(salon, callback) {
 }
 
 // ── お客様を登録 ────────────────────────────────────
-export async function addClient(data) {
-  const qrId = `hair_${Math.random().toString(36).slice(2,10)}`
-  return await addDoc(collection(db, 'salons', 'hair-salon', 'clients'), {
-    registeredSalon: 'hair',
+export async function addClient(salon, data) {
+  const qrId = `${salon}_${Math.random().toString(36).slice(2,10)}`
+  return await addDoc(collection(db, 'clients'), {
+    registeredSalon: salon,
     ...data,
     qrId,
     createdAt: serverTimestamp(),
@@ -33,90 +27,43 @@ export async function getClientByQrId(qrId) {
   const q = query(collection(db, 'clients'), where('qrId', '==', qrId))
   const snap = await getDocs(q)
   if (snap.empty) return null
-  return { id: snap.docs[0].id, ...snap.docs[0].data() }
+  const d = snap.docs[0]
+  return { id: d.id, ...d.data() }
 }
 
-// ── 施術記録を取得（リアルタイム）───────────────────
+// ── 施術記録を取得（リアルタイム）────────────────────────────────────
 export function subscribeRecords(clientId, callback) {
-  const q = query(
-    collection(db, 'clients', clientId, 'records'),
-    orderBy('date', 'desc')
-  )
+  const q = query(collection(db, 'clients', clientId, 'records'), orderBy('createdAt', 'desc'))
   return onSnapshot(q, snap => {
     const records = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     callback(records)
   })
 }
 
-// ── 施術記録を追加 ──────────────────────────────────
+// ── 施術記録を追加 ────────────────────────────────────
 export async function addRecord(clientId, data) {
-  return await addDoc(
-    collection(db, 'clients', clientId, 'records'),
-    { ...data, clientPhotos: [], createdAt: serverTimestamp() }
-  )
+  return await addDoc(collection(db, 'clients', clientId, 'records'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  })
 }
 
-// ── 施術記録を更新（共有切替など）──────────────────
+// ── 施術記録を更新 ────────────────────────────────────
 export async function updateRecord(clientId, recordId, data) {
-  const ref = doc(db, 'clients', clientId, 'records', recordId)
-  return await updateDoc(ref, data)
+  await updateDoc(doc(db, 'clients', clientId, 'records', recordId), data)
 }
 
-// ── 施術記録を削除 ──────────────────────────────────
+// ── 施術記録を削除 ────────────────────────────────────
 export async function deleteRecord(clientId, recordId) {
-  const ref = doc(db, 'clients', clientId, 'records', recordId)
-  return await deleteDoc(ref)
+  await deleteDoc(doc(db, 'clients', clientId, 'records', recordId))
 }
 
-// ── 写真をStorageにアップロードしてURLを返す ────────
-export async function uploadPhoto(file, path) {
-  const storageRef = ref(storage, path)
-  const snap = await uploadBytes(storageRef, file)
-  return await getDownloadURL(snap.ref)
-}
-
-// ── スタッフが写真を追加
+// ── スタッフ写真を追加 ────────────────────────────────────
 export async function addStaffPhotos(clientId, recordId, files) {
-  const urls = await Promise.all(
-    files.map((file, i) =>
-      uploadPhoto(file, `records/${clientId}/${recordId}/staff_${Date.now()}_${i}`)
-    )
-  )
-  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
-  const snap = await getDoc(recordRef)
-  const existing = snap.data().photos || []
-  await updateDoc(recordRef, { photos: [...existing, ...urls] })
-  return urls
-}
-
-// ── お客様が写真を追加
-export async function addClientPhotos(clientId, recordId, files) {
-  const urls = await Promise.all(
-    files.map((file, i) =>
-      uploadPhoto(file, `records/${clientId}/${recordId}/client_${Date.now()}_${i}`)
-    )
-  )
-  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
-  const snap = await getDoc(recordRef)
-  const existing = snap.data().clientPhotos || []
-  await updateDoc(recordRef, { clientPhotos: [...existing, ...urls] })
-  return urls
-}
-
-// ── お客様が写真を削除
-export async function deleteClientPhoto(clientId, recordId, photoUrl) {
-  // FirestoreからURLを削除
-  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
-  const snap = await getDoc(recordRef)
-  const existing = snap.data().clientPhotos || []
-  const updated = existing.filter(url => url !== photoUrl)
-  await updateDoc(recordRef, { clientPhotos: updated })
-
-  // StorageからファイルをURL経由で削除
-  try {
-    const storageRef = ref(storage, photoUrl)
-    await deleteObject(storageRef)
-  } catch(e) {
-    // Storage削除に失敗しても続行
-  }
+  const urls = await Promise.all(files.map(async file => {
+    const r = ref(storage, `clients/${clientId}/records/${recordId}/${file.name}`)
+    await uploadBytes(r, file)
+    return getDownloadURL(r)
+  }))
+  await updateDoc(doc(db, 'clients', clientId, 'records', recordId), { photos: urls })
 }
