@@ -110,12 +110,12 @@ export default function StaffApp() {
 })
   const [newPhotos, setNewPhotos] = useState([])
   const filteredClients = clients.filter((c) => {
-  const q = searchText.toLowerCase()
-  return (
-    (c.name || '').toLowerCase().includes(q) ||
-    (c.kana || '').toLowerCase().includes(q)
-  )
-})
+    const q = searchText.toLowerCase()
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.kana || '').toLowerCase().includes(q)
+    )
+  })
  
 
   // リアルタイムでお客様一覧を取得
