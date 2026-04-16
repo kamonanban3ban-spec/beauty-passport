@@ -67,3 +67,24 @@ export async function addStaffPhotos(clientId, recordId, files) {
   }))
   await updateDoc(doc(db, 'clients', clientId, 'records', recordId), { photos: urls })
 }
+
+// ── お客様写真を追加 ────────────────────────────────────
+export async function addClientPhotos(clientId, recordId, files) {
+  const urls = await Promise.all(files.map(async file => {
+    const r = ref(storage, `clients/${clientId}/records/${recordId}/client_${file.name}`)
+    await uploadBytes(r, file)
+    return getDownloadURL(r)
+  }))
+  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
+  const snap = await getDoc(recordRef)
+  const existing = snap.data()?.clientPhotos || []
+  await updateDoc(recordRef, { clientPhotos: [...existing, ...urls] })
+}
+
+// ── お客様写真を削除 ────────────────────────────────────
+export async function deleteClientPhoto(clientId, recordId, url) {
+  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
+  const snap = await getDoc(recordRef)
+  const existing = snap.data()?.clientPhotos || []
+  await updateDoc(recordRef, { clientPhotos: existing.filter(u => u !== url) })
+}
