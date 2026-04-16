@@ -9,12 +9,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage } from './config'
 
 // ── お客様一覧を取得（リアルタイム）─────────────────
-export function subscribeClients(salon, callback) {
-  const q = query(
-    collection(db, 'clients'),
-    where('registeredSalon', '==', salon),
-    orderBy('createdAt', 'desc')
-  )
+export function subscribeClients(callback) {
   return onSnapshot(q, snap => {
     const clients = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     callback(clients)
@@ -22,10 +17,10 @@ export function subscribeClients(salon, callback) {
 }
 
 // ── お客様を登録 ────────────────────────────────────
-export async function addClient(salon, data) {
-  const qrId = `${salon}_${Math.random().toString(36).slice(2, 10)}`
-  return await addDoc(collection(db, 'clients'), {
-    registeredSalon: salon,
+export async function addClient(data) {
+  const qrId = `hair_${Math.random().toString(36).slice(2,10)}`
+  return await addDoc(collection(db, 'salons', 'hair-salon', 'clients'), {
+    registeredSalon: 'hair',
     ...data,
     qrId,
     createdAt: serverTimestamp(),
