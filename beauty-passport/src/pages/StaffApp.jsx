@@ -100,6 +100,7 @@ export default function StaffApp() {
   const [nc, setNc] = useState({ name:'', kana:'', phone:'', note:'' })
   const [nr, setNr] = useState({ date:new Date().toISOString().slice(0,10), menu:[], salonName:'', memo:'', shared:false })
   const [qrInput, setQrInput] = useState('')
+  const I = INDUSTRIES[salon] || INDUSTRIES['hair']
   const [searchText, setSearchText] = useState('')
   const [ec, setEc] = useState({
   name: '',
