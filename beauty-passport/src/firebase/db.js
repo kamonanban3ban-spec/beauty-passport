@@ -9,7 +9,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage } from './config'
 
 // ── お客様一覧を取得（リアルタイム）─────────────────
-export function subscribeClients(callback) {
+export function subscribeClients(salon, callback) {
+  const q = query(collection(db, 'clients'), where('registeredSalon', '==', salon), orderBy('createdAt', 'desc'))
   return onSnapshot(q, snap => {
     const clients = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     callback(clients)
