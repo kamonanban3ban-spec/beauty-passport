@@ -87,6 +87,10 @@ function QRModal({ record, client, I, onClose }) {
 export default function StaffApp() {
   const urlSalon = new URLSearchParams(window.location.search).get('salon') || 'hair'
   const [salon, setSalon]             = useState(urlSalon)
+
+  // ✅ 修正①: I をここで定義
+  const I = INDUSTRIES[salon] || Object.values(INDUSTRIES)[0]
+
   const [clients, setClients]         = useState([])
   const [records, setRecords]         = useState([])
   const [view, setView]               = useState('list')
@@ -96,37 +100,29 @@ export default function StaffApp() {
   const [qrTarget, setQrTarget]       = useState(null)
   const [photoViewer, setPhotoViewer] = useState(null)
 
-  // forms
   const [nc, setNc] = useState({ name:'', kana:'', phone:'', note:'' })
   const [nr, setNr] = useState({ date:new Date().toISOString().slice(0,10), menu:[], salonName:'', memo:'', shared:false })
   const [qrInput, setQrInput] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [ec, setEc] = useState({
-  name: '',
-  kana: '',
-  phone: '',
-  note: '',
-})
+  const [ec, setEc] = useState({ name:'', kana:'', phone:'', note:'' })
   const [newPhotos, setNewPhotos] = useState([])
+
   const filteredClients = clients.filter((c) => {
-  const q = searchText.toLowerCase()
-  return (
-    (c.name || '').toLowerCase().includes(q) ||
-    (c.kana || '').toLowerCase().includes(q)
-  )
-})
- 
+    const q = searchText.toLowerCase()
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.kana || '').toLowerCase().includes(q)
+    )
+  })
 
-  // リアルタイムでお客様一覧を取得
   useEffect(() => {
-  const unsub = subscribeClients(salon, setClients)
-  setView('list')
-  setSelClient(null)
-  setSelRecord(null)
-  return () => unsub?.()
-}, [])
+    const unsub = subscribeClients(salon, setClients)
+    setView('list')
+    setSelClient(null)
+    setSelRecord(null)
+    return () => unsub?.()
+  }, [])
 
-  // 選択中のお客様の施術記録を取得
   useEffect(() => {
     if (!selClient) return
     const unsub = subscribeRecords(selClient.id, setRecords)
@@ -136,29 +132,24 @@ export default function StaffApp() {
   const handleAddClient = async () => {
     if (!nc.name) return
     setLoading(true)
-    const docRef = await addClient({ ...nc })
+    await addClient({ ...nc })
     setNc({ name:'', kana:'', phone:'', note:'' })
     setLoading(false)
     setView('list')
   }
-function handleQrSearch() {
-  const found = clients.find(c => c.qrId === qrInput)
 
-  if (!found) {
-    alert('お客様が見つかりません')
-    return
+  function handleQrSearch() {
+    const found = clients.find(c => c.qrId === qrInput)
+    if (!found) { alert('お客様が見つかりません'); return }
+    setSelClient(found)
+    setView('clientDetail')
   }
 
-  setSelClient(found)
-  setView('clientDetail')
-}
   const handleAddRecord = async () => {
     if (!nr.menu.length || !selClient) return
     setLoading(true)
     const docRef = await addRecord(selClient.id, { ...nr, photos:[] })
-    if (newPhotos.length > 0) {
-      await addStaffPhotos(selClient.id, docRef.id, newPhotos)
-    }
+    if (newPhotos.length > 0) await addStaffPhotos(selClient.id, docRef.id, newPhotos)
     setNr({ date:new Date().toISOString().slice(0,10), menu:[], salonName:'', memo:'', shared:false })
     setNewPhotos([])
     setView('profile')
@@ -176,15 +167,10 @@ function handleQrSearch() {
   }
 
   const renderContent = () => {
+
     if (view === 'addClient') return (
       <div style={{ padding:'16px 18px 100px' }}>
-        
-
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-      
-    </div>
         <Btn variant="outline" color="#b89ca4" small onClick={()=>setView('list')} style={{ marginBottom:22 }}>← キャンセル</Btn>
-              <Btn color={I.color} onClick={handleAddClient}>{loading ? '登録中...' : '登録する'}</Btn>
         <div style={{ fontSize:20, fontWeight:700, color:'#2d2028', marginBottom:20, fontFamily:fontAlt }}>新規お客様登録</div>
         {[['お名前','name','田中 さくら'],['ふりがな','kana','タナカ サクラ'],['電話番号','phone','090-0000-0000']].map(([label,key,ph])=>(
           <div key={key} style={{ marginBottom:14 }}>
@@ -193,51 +179,12 @@ function handleQrSearch() {
               style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:15, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box' }} />
           </div>
         ))}
-        <div style={{ marginBottom:14 }}>
+        <div style={{ marginBottom:20 }}>
           <SLabel>特記事項</SLabel>
           <textarea placeholder="アレルギー・頭皮状態など" value={nc.note} onChange={e=>setNc(p=>({...p,note:e.target.value}))}
-            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:80, marginBottom:0 }} />
+            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:80 }} />
         </div>
-
-        <div style={{ marginBottom:14 }}>
-          <SLabel>🏪 {I.salonLabel}</SLabel>
-          <input placeholder="例：Hair Salon Mika" value={nr.salonName} onChange={e=>setNr(p=>({...p,salonName:e.target.value}))}
-            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:15, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box' }} />
-        </div>
-
-        <div style={{ marginBottom:14 }}>
-          
-                <div style={{ marginBottom:14 }}>
-                  <SLabel>メニュー（複数選択可）</SLabel>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:6 }}>
-                    {['カット','カラー','パーマ','縮毛矯正','ブリーチ1回','ブリーチ2回','ブリーチ3回','ハイライト','ローライト','トーンダウン'].map(m => {
-                      const selected = (nr.menu||[]).includes(m)
-                      return (
-                        <button key={m} onClick={()=>setNr(p=>({ ...p, menu: selected ? p.menu.filter(x=>x!==m) : [...(p.menu||[]),m] }))}
-                          style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, cursor:'pointer',
-                            background: selected ? I.color : '#fff',
-                            color: selected ? '#fff' : '#b89ca4',
-                            border: selected ? '1.5px solid ' + I.color : '1.5px solid #edd8de' }}>
-                          {m}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-<SLabel>📝 メモ</SLabel>
-          <textarea placeholder={I.memoPlaceholder} value={nr.memo} onChange={e=>setNr(p=>({...p,memo:e.target.value}))}
-            style={{ width:'100%', background:'#fff', border:'1.5px solid #edd8de', borderRadius:12, color:'#2d2028', fontSize:14, padding:'11px 14px', fontFamily:font, outline:'none', boxSizing:'border-box', resize:'vertical', minHeight:84 }} />
-        </div>
-
-        <SLabel>🔓 お客様への共有</SLabel>
-        <div style={{ display:'flex', gap:10, marginBottom:24 }}>
-          {[true,false].map(v=>(
-            <button key={String(v)} onClick={()=>setNr(p=>({...p,shared:v}))} style={{ flex:1, padding:'11px 0', borderRadius:12, cursor:'pointer', background:nr.shared===v?(v?'#7bbf9a':I.color):'#fff', color:nr.shared===v?'#fff':'#b89ca4', border:`1.5px solid ${nr.shared===v?(v?'#7bbf9a':I.color):'#edd8de'}`, fontFamily:font, fontSize:13, fontWeight:600 }}>
-              {v ? '公開する' : '非公開'}
-            </button>
-          ))}
-        </div>
-        <Btn color={I.color} onClick={handleAddRecord}>{loading ? '保存中...' : '保存する'}</Btn>
+        <Btn color={I.color} onClick={handleAddClient}>{loading ? '登録中...' : '登録する'}</Btn>
       </div>
     )
 
@@ -266,7 +213,6 @@ function handleQrSearch() {
             </div>
             {selClient.note && <div style={{ marginTop:12, background:I.colorPale, borderRadius:12, padding:'10px 13px', fontSize:13, color:'#7a5f66', fontFamily:font }}>{selClient.note}</div>}
           </div>
-
           {allPhotos.length > 0 && (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
               {allPhotos.map(({photo},i) => (
@@ -278,7 +224,6 @@ function handleQrSearch() {
               ))}
             </div>
           )}
-
           <div style={{ borderTop:'1px solid #f5e6ea', marginTop:2 }}>
             {records.map(r => (
               <div key={r.id} style={{ background:'#fff', borderBottom:'1px solid #f5e6ea', padding:'14px 18px', cursor:'pointer' }} onClick={()=>{setSelRecord(r);setView('detail')}}>
@@ -336,177 +281,116 @@ function handleQrSearch() {
       </div>
     )
 
-   
-
-if (view === 'clientDetail' && selClient) {
-  return (
-    <div>
-      <button onClick={() => setView('list')}>戻る</button>
-
-      <h2>{selClient.name}</h2>
-
-      <div>かな: {selClient.kana}</div>
-      <div>電話: {selClient.phone}</div>
-      <div>メモ: {selClient.note}</div>
-<button
-  onClick={() => {
-    setEc({
-      name: selClient.name || '',
-      kana: selClient.kana || '',
-      phone: selClient.phone || '',
-      note: selClient.note || '',
-    })
-    setView('editClient')
-  }}
-  style={{
-    marginTop: 12,
-    background: '#fff',
-    border: '1px solid #d9b8c3',
-    borderRadius: 10,
-    padding: '10px 14px',
-    cursor: 'pointer',
-  }}
->
-  編集
-</button>
-
-      <h3>履歴</h3>
-
-      {records.length === 0 ? (
-        <div>履歴なし</div>
-      ) : (
-        records.map(r => (
-          <div key={r.id}>
-            <div>{r.date}</div>
-            <div>{Array.isArray(r.menu) ? r.menu.join(' / ') : r.menu}</div>
-            <div>{r.memo}</div>
+    // ✅ 修正②: clientDetail — } が正しく閉じている
+    if (view === 'clientDetail' && selClient) {
+      return (
+        <div style={{ padding:'16px 18px 100px' }}>
+          <Btn variant="outline" color="#b89ca4" small onClick={() => setView('list')} style={{ marginBottom:16 }}>← 戻る</Btn>
+          <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:16 }}>
+            <Avatar name={selClient.name} color={I.color} size={56} />
+            <div>
+              <div style={{ fontSize:20, fontWeight:700, color:'#2d2028', fontFamily:fontAlt }}>{selClient.name}</div>
+              <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>{selClient.kana}</div>
+              <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>{selClient.phone}</div>
+            </div>
           </div>
-        ))
+          {selClient.note && (
+            <div style={{ background:I.colorPale, borderRadius:12, padding:'10px 13px', fontSize:13, color:'#7a5f66', fontFamily:font, marginBottom:16 }}>
+              {selClient.note}
+            </div>
+          )}
+          <button
+            onClick={() => {
+              setEc({ name:selClient.name||'', kana:selClient.kana||'', phone:selClient.phone||'', note:selClient.note||'' })
+              setView('editClient')
+            }}
+            style={{ marginBottom:20, background:'#fff', border:'1px solid #d9b8c3', borderRadius:10, padding:'10px 14px', cursor:'pointer', fontFamily:font }}
+          >
+            編集
+          </button>
+          <div style={{ fontSize:13, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:10 }}>施術履歴</div>
+          {records.length === 0 ? (
+            <div style={{ textAlign:'center', color:'#b89ca4', padding:'40px 0', fontFamily:font }}>履歴なし</div>
+          ) : (
+            records.map(r => (
+              <div key={r.id} style={{ background:'#fff', border:'1px solid #edd8de', borderRadius:12, padding:12, marginBottom:8 }}>
+                <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font, marginBottom:4 }}>{r.date}</div>
+                <div style={{ fontSize:14, color:'#2d2028', fontFamily:font }}>{Array.isArray(r.menu) ? r.menu.join(' / ') : r.menu}</div>
+                {r.memo && <div style={{ fontSize:12, color:'#7a5f66', fontFamily:font, marginTop:4 }}>{r.memo}</div>}
+              </div>
+            ))
+          )}
+        </div>
+      )
+    } // ✅ ここで正しく閉じている
+
+    if (view === 'scanQr') {
+      return (
+        <div style={{ padding:'16px 18px 100px' }}>
+          <Btn variant="outline" color="#b89ca4" small onClick={() => setView('list')} style={{ marginBottom:16 }}>← 戻る</Btn>
+          <div style={{ background:'#fff', border:'1px solid #edd8de', borderRadius:14, padding:16 }}>
+            <div style={{ fontSize:18, fontWeight:700, marginBottom:8, fontFamily:fontAlt }}>QRを読み取る</div>
+            <input
+              value={qrInput}
+              onChange={(e) => setQrInput(e.target.value)}
+              placeholder="QRコードを入力"
+              style={{ padding:8, width:'100%', marginTop:10, boxSizing:'border-box', border:'1px solid #edd8de', borderRadius:8, fontFamily:font }}
+            />
+            <div style={{ marginTop:10 }}>
+              <Btn color={I.color} onClick={handleQrSearch}>お客様を開く</Btn>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // list
+    return (
+      <div style={{ padding:'16px 18px 100px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'#b89ca4', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:font }}>
+            お客様
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <Btn color={I.color} small onClick={() => setView('addClient')}>作成</Btn>
+            <Btn color={I.color} small onClick={() => setView('scanQr')}>QR</Btn>
+          </div>
+        </div>
+        {clients.length === 0 ? (
+          <div style={{ textAlign:'center', color:'#b89ca4', padding:'60px 0', fontFamily:font }}>
+            お客様が見つかりません
+          </div>
+        ) : (
+          clients.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => { setSelClient(c); setView('clientDetail') }}
+              style={{ background:'#fff', border:'1px solid #edd8de', borderRadius:12, padding:12, marginBottom:8, display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}
+            >
+              <Avatar name={c.name} color={I.color} size={44} />
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:16, fontWeight:600, color:'#2d2028', fontFamily:fontAlt }}>{c.name}</div>
+                <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>{c.kana}</div>
+              </div>
+              <Badge color={I.color}>{c.recordCount || 0}件</Badge>
+            </div>
+          ))
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ fontFamily:font, background:'#fdf6f8', minHeight:'100vh' }}>
+      {renderContent()}
+      {qrTarget && (
+        <QRModal
+          record={qrTarget.record}
+          client={qrTarget.client}
+          I={I}
+          onClose={() => setQrTarget(null)}
+        />
       )}
     </div>
   )
-
-}
-
-if (view === 'scanQr') {
-  return (
-    <div style={{ padding: '16px 18px 100px' }}>
-      <button
-        onClick={() => setView('list')}
-        style={{
-          background: '#fff',
-          border: '1px solid #edd8de',
-          borderRadius: 10,
-          padding: '8px 12px',
-          cursor: 'pointer',
-          marginBottom: 16,
-        }}
-      >
-        戻る
-      </button>
-
-      <div
-        style={{
-          background: '#fff',
-          border: '1px solid #edd8de',
-          borderRadius: 14,
-          padding: 16,
-        }}
-      >
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-          QRを読み取る
-        </div>
-        <div style={{ fontSize: 14, color: '#666' }}>
-          ここにあとでカメラ機能を入れます
-          <input
-  value={qrInput}
-onChange={(e) => setQrInput(e.target.value)}
-  placeholder="QRコードを入力"
-  style={{ padding: 8, width: '100%', marginTop: 10 }}
-/>
-
-<Btn onClick={handleQrSearch} style={{ marginTop: 10 }}>
-  お客様を開く
-</Btn>
-        </div>
-      </div>
-    </div>
-  )
-}
-// list
-return (
-  <div style={{ padding:'16px 18px 100px' }}>
-    <input
-  value={searchText}
-  onChange={(e) => setSearchText(e.target.value)}
-  placeholder="名前・ふりがなで検索"
-  style={{
-    width: '100%',
-    display: 'block',
-    boxSizing: 'border-box',
-    padding: 12,
-    borderRadius: 10,
-    border: '1px solid #ccc',
-    marginBottom: 12,
-    background: '#fff',
-    color: '#222',
-  }}
-/>
-
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-      <div style={{ fontSize:12, fontWeight:600, color:'#b89ca4', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:font }}>
-        お客様
-      </div>
-
-      <div style={{ display:'flex', gap:8 }}>
-        <Btn color={I.color} small onClick={() => setView('addClient')}>
-          作成
-        </Btn>
-
-        <Btn color={I.color} small onClick={() => setView('scanQr')}>
-          QR
-        </Btn>
-      </div>
-    </div>
-
-    {filteredClients.length === 0 ? (
-      <div style={{ textAlign:'center', color:'#b89ca4', padding:'60px 0', fontFamily:font }}>
-        お客様が見つかりません
-      </div>
-    ) : (
-      filteredClients.map((c) => (
-        <div
-          key={c.id}
-          onClick={() => {
-            setSelClient(c)
-            setView('clientDetail')
-          }}
-          style={{
-            background:'#fff',
-            border:'1px solid #edd8de',
-            borderRadius:12,
-            padding:12,
-            marginBottom:8,
-            display:'flex',
-            alignItems:'center',
-            gap:12,
-            cursor:'pointer'
-          }}
-        >
-          <Avatar name={c.name} color={I.color} size={44} />
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:16, fontWeight:600, color:'#2d2028', fontFamily:fontAlt }}>
-              {c.name}
-            </div>
-            <div style={{ fontSize:12, color:'#b89ca4', fontFamily:font }}>
-              {c.kana}
-            </div>
-          </div>
-          <Badge color={I.color}>{c.recordCount || 0}件</Badge>
-        </div>
-      ))
-    )}
-  </div>
-)
-}
 }
