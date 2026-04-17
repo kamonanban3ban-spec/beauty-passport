@@ -88,3 +88,14 @@ export async function deleteClientPhoto(clientId, recordId, url) {
   const existing = snap.data()?.clientPhotos || []
   await updateDoc(recordRef, { clientPhotos: existing.filter(u => u !== url) })
 }
+// 写真をStorageにアップロードしてrecordのphotosに追加
+export async function uploadPhotoToRecord(clientId, recordId, file) {
+  const r = ref(storage, `clients/${clientId}/records/${recordId}/${Date.now()}_${file.name}`)
+  await uploadBytes(r, file)
+  const url = await getDownloadURL(r)
+  const recordRef = doc(db, 'clients', clientId, 'records', recordId)
+  const snap = await getDoc(recordRef)
+  const existing = snap.data()?.photos || []
+  await updateDoc(recordRef, { photos: [...existing, url] })
+  return url
+}
