@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { subscribeClients, subscribeRecords, addClient, addRecord, uploadPhotoToRecord } from '../firebase/db'
+import { subscribeClients, subscribeRecords, addClient, addRecord, uploadPhotoToRecord, getSalonById } from '../firebase/db'
 
 const MENUS = ['カット','カラー','パーマ','縮毛矯正','ブリーチ1回','ブリーチ2回','ブリーチ3回','ハイライト','ローライト','トーンダウン']
 
 export default function StaffApp() {
   const salon = new URLSearchParams(window.location.search).get('salon') || 'hair'
+  const [authed, setAuthed] = useState(false)
+  const [pwInput, setPwInput] = useState('')
+  const [pwError, setPwError] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [salonData, setSalonData] = useState(null)
 
   const [view, setView] = useState('list')
   const [clients, setClients] = useState([])
@@ -20,16 +25,23 @@ export default function StaffApp() {
 
   const fileInputRef = useRef()
   const [form, setForm] = useState({ name: '', kana: '', phone: '', note: '', menu: [] })
-
+ useEffect(() => {
+  if (!salon) { setCheckingAuth(false); return }
+  getSalonById(salon).then(data => {
+    setSalonData(data)
+    setCheckingAuth(false)
+  })
+}, [salon])
   useEffect(() => {
-    setLoadingClients(true)
-    const unsub = subscribeClients(salon, (data) => {
-      setClients(data)
-      setLoadingClients(false)
-    })
-    return () => unsub?.()
-  }, [salon])
-
+  if (!authed) return
+  setLoadingClients(true)
+  const unsub = subscribeClients(salon, (data) => {
+    setClients(data)
+    setLoadingClients(false)
+  })
+  return () => unsub?.()
+}, [authed])
+ 
   useEffect(() => {
     if (!selClient) return
     setLoadingRecords(true)
@@ -65,7 +77,15 @@ export default function StaffApp() {
       menu: f.menu.includes(m) ? f.menu.filter(x => x !== m) : [...f.menu, m]
     }))
   }
-
+const handleLogin = () => {
+  if (!salonData) { setPwError(true); return }
+  if (pwInput === salonData.password) {
+    setAuthed(true)
+    setPwError(false)
+  } else {
+    setPwError(true)
+  }
+}
   const handleCreate = async () => {
     if (!form.name) { alert('お名前を入力してください'); return }
     setSaving(true)
@@ -111,7 +131,32 @@ export default function StaffApp() {
 
   const qrUrl = `${window.location.origin}/client?salon=${salon}&qr=${selClient?.qrId}`
 
-  // 一覧画面
+  if (checkingAuth) return (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#999' }}>
+    読み込み中...
+  </div>
+)
+
+if (!authed) return (
+  <div style={{ padding: 32, maxWidth: 320, margin: '80px auto', fontFamily: 'sans-serif' }}>
+    <h2 style={{ marginBottom: 16 }}>ログイン</h2>
+    <input
+      type="password"
+      value={pwInput}
+      onChange={e => { setPwInput(e.target.value); setPwError(false) }}
+      onKeyDown={e => e.key === 'Enter' && handleLogin()}
+      placeholder="パスワードを入力"
+      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${pwError ? '#e06060' : '#ddd'}`, fontSize: 14, boxSizing: 'border-box', marginBottom: 8 }}
+    />
+    {pwError && <div style={{ color: '#e06060', fontSize: 13, marginBottom: 8 }}>パスワードが違います</div>}
+    <button
+      onClick={handleLogin}
+      style={{ width: '100%', background: '#c97d8e', color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+    >
+      ログイン
+    </button>
+  </div>
+)// 一覧画面
   if (view === 'list') return (
     <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
