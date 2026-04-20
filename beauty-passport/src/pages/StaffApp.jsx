@@ -129,7 +129,7 @@ const handleLogin = () => {
     }
   }
 
-  const qrUrl = `${window.location.origin}/client?salon=${salon}&qr=${selClient?.qrId}`
+  const qrUrl = `https://beauty-passport.vercel.app/client?salon=${salon}&qr=${selClient?.qrId}`
   console.log('selClient:', selClient)
   console.log('qrId:', selClient?.qrId)
   console.log('qrUrl:', qrUrl)
