@@ -130,7 +130,9 @@ const handleLogin = () => {
   }
 
   const qrUrl = `${window.location.origin}/client?salon=${salon}&qr=${selClient?.qrId}`
-
+  console.log('selClient:', selClient)
+  console.log('qrId:', selClient?.qrId)
+  console.log('qrUrl:', qrUrl)
   if (checkingAuth) return (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#999' }}>
     読み込み中...

@@ -117,12 +117,7 @@ export default function ClientApp() {
   )
 
   // qrIdなし or お客様が見つからない
-  if (salonId !== 'hair') return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
-      <img src="/logo.svg" alt="logo" style={{ width:80, height:80, borderRadius:16, marginBottom:24 }} />
-      <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:8 }}>準備中</div>
-    </div>
-  )
+ 
 
   if (!urlQrId || !client) return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
