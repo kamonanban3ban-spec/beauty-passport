@@ -25,7 +25,10 @@ export default function StaffApp() {
 
   const fileInputRef = useRef()
   const [form, setForm] = useState({ name: '', kana: '', phone: '', note: '', menu: [] })
- useEffect(() => {
+ const [showAddRecord, setShowAddRecord] = useState(false)
+const [newRecord, setNewRecord] = useState({ date: new Date().toISOString().slice(0,10), menu: [], memo: '' })
+const [savingRecord, setSavingRecord] = useState(false)
+useEffect(() => {
   if (!salon) { setCheckingAuth(false); return }
   getSalonById(salon).then(data => {
     setSalonData(data)
@@ -65,27 +68,30 @@ export default function StaffApp() {
     setShowQR(false)
     setView('detail')
   }
-
-  const openRecord = (record) => {
-    setSelRecord(record)
-    setView('record')
+const handleAddRecord = async () => {
+    if (!newRecord.menu.length || !selClient) return
+    setSavingRecord(true)
+    try {
+      const docRef = await addRecord(selClient.id, {
+        date: newRecord.date,
+        menu: newRecord.menu,
+        memo: newRecord.memo,
+        photos: [],
+        shared: true,
+      })
+      if (newRecord.photoFiles?.length > 0) {
+        await addStaffPhotos(selClient.id, docRef.id, newRecord.photoFiles)
+      }
+      setNewRecord({ date: new Date().toISOString().slice(0,10), menu: [], memo: '', photoFiles: [] })
+      setShowAddRecord(false)
+    } catch (e) {
+      alert('保存に失敗しました')
+    } finally {
+      setSavingRecord(false)
+    }
+  }
   }
 
-  const toggleMenu = (m) => {
-    setForm(f => ({
-      ...f,
-      menu: f.menu.includes(m) ? f.menu.filter(x => x !== m) : [...f.menu, m]
-    }))
-  }
-const handleLogin = () => {
-  if (!salonData) { setPwError(true); return }
-  if (pwInput === salonData.password) {
-    setAuthed(true)
-    setPwError(false)
-  } else {
-    setPwError(true)
-  }
-}
   const handleCreate = async () => {
     if (!form.name) { alert('お名前を入力してください'); return }
     setSaving(true)
@@ -247,7 +253,51 @@ if (!authed) return (
   if (view === 'detail') return (
     <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
       <button onClick={() => setView('list')} style={backBtn}>← 一覧に戻る</button>
-
+{showAddRecord && (
+        <div style={{ background: '#f9f0f3', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>日付</div>
+            <input type="date" value={newRecord.date} onChange={e => setNewRecord(r => ({ ...r, date: e.target.value }))} style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>メニュー（複数選択可）</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+              {MENUS.map(m => {
+                const selected = newRecord.menu.includes(m)
+                return (
+                  <button key={m} onClick={() => setNewRecord(r => ({ ...r, menu: selected ? r.menu.filter(x => x !== m) : [...r.menu, m] }))}
+                    style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      background: selected ? '#c97d8e' : '#fff', color: selected ? '#fff' : '#999',
+                      border: selected ? '1.5px solid #c97d8e' : '1.5px solid #ddd' }}>
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>メモ</div>
+            <textarea value={newRecord.memo} onChange={e => setNewRecord(r => ({ ...r, memo: e.target.value }))} placeholder="施術メモ" style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>写真</div>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={e => setNewRecord(r => ({ ...r, photoFiles: Array.from(e.target.files) }))}
+              style={{ fontSize: 13, marginTop: 6 }}
+            />
+            {newRecord.photoFiles?.length > 0 && (
+              <div style={{ fontSize: 12, color: '#c97d8e', marginTop: 4 }}>
+                {newRecord.photoFiles.length}枚選択中
+              </div>
+            )}
+          </div><button onClick={handleAddRecord} disabled={savingRecord} style={primaryBtn}>
+            {savingRecord ? '保存中...' : '保存する'}
+          </button>
+        </div>
+      )}
       <h2 style={{ margin: '16px 0 4px' }}>{selClient?.name}</h2>
       <div style={{ color: '#999', fontSize: 13, marginBottom: 4 }}>{selClient?.kana}</div>
       <div style={{ color: '#999', fontSize: 13, marginBottom: 4 }}>{selClient?.phone}</div>
@@ -270,7 +320,41 @@ if (!authed) return (
       )}
 
       <h3 style={{ marginBottom: 10 }}>施術履歴</h3>
+<button onClick={() => setShowAddRecord(v => !v)} style={{ ...primaryBtn, marginBottom: 16, fontSize: 13 }}>
+        {showAddRecord ? 'キャンセル' : '＋ 施術記録を追加'}
+      </button>
 
+      {showAddRecord && (
+        <div style={{ background: '#f9f0f3', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>日付</div>
+            <input type="date" value={newRecord.date} onChange={e => setNewRecord(r => ({ ...r, date: e.target.value }))} style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>メニュー（複数選択可）</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+              {MENUS.map(m => {
+                const selected = newRecord.menu.includes(m)
+                return (
+                  <button key={m} onClick={() => setNewRecord(r => ({ ...r, menu: selected ? r.menu.filter(x => x !== m) : [...r.menu, m] }))}
+                    style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      background: selected ? '#c97d8e' : '#fff', color: selected ? '#fff' : '#999',
+                      border: selected ? '1.5px solid #c97d8e' : '1.5px solid #ddd' }}>
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>メモ</div>
+            <textarea value={newRecord.memo} onChange={e => setNewRecord(r => ({ ...r, memo: e.target.value }))} placeholder="施術メモ" style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} />
+          </div>
+          <button onClick={handleAddRecord} disabled={savingRecord} style={primaryBtn}>
+            {savingRecord ? '保存中...' : '保存する'}
+          </button>
+        </div>
+      )}
       {loadingRecords && <div style={{ color: '#999' }}>読み込み中...</div>}
 
       {!loadingRecords && records.length === 0 && (
