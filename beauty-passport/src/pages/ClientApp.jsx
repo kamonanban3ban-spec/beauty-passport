@@ -76,13 +76,21 @@ function AddPhotoModal({ record, clientId, I, onDone, onClose }) {
 // ── メイン ─────────────────────────────────────────────────────────────────────
 export default function ClientApp() {
   const params  = new URLSearchParams(window.location.search)
-  const salonId = params.get('salon') || 'hair'
-  const urlQrId = params.get('qr')
+  const urlSalon = params.get('salon')
+  const urlQr = params.get('qr')
+
+ if (urlSalon && urlQr) {
+  localStorage.setItem('bp_salon', urlSalon)
+  localStorage.setItem('bp_qr', urlQr)
+}
+
+const salonId = urlSalon || localStorage.getItem('bp_salon') || ''
+const urlQrId = urlQr || localStorage.getItem('bp_qr') || ''
   const I       = INDUSTRIES[salonId] || INDUSTRIES.hair
 
   const [client, setClient]       = useState(null)
   const [records, setRecords]     = useState([])
-  const [loading, setLoading]     = useState(!!urlQrId)
+  const [loading, setLoading] = useState(true)
   const [view, setView]           = useState('feed')
   const [selRecord, setSelRecord] = useState(null)
   const [addPhoto, setAddPhoto]   = useState(null)
@@ -119,7 +127,13 @@ export default function ClientApp() {
   // qrIdなし or お客様が見つからない
  
 
-  if (!urlQrId || !client) return (
+  if (!urlQrId) return (
+  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
+    <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:8 }}>スタッフからQRをもらって読み込んでください</div>
+  </div>
+)
+
+if (!client) return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:32, fontFamily:font, textAlign:'center' }}>
       <img src="/logo.svg" alt="logo" style={{ width:80, height:80, borderRadius:16, marginBottom:24 }} />
       <div style={{ fontSize:18, fontWeight:700, color:'#2d2028', fontFamily:fontAlt, marginBottom:8 }}>リンクが正しくありません</div>
