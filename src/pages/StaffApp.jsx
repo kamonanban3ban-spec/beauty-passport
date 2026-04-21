@@ -123,7 +123,7 @@ export default function StaffApp() {
     if (!file || !selClient || !selRecord) return
     setUploading(true)
     try {
-      await addStaffPhotos(selClient.id, selRecord.id, file)
+      await addStaffPhotos(selClient.id, selRecord.id, [file])
     } catch (e) {
       console.error('アップロードエラー:', e)
       alert('アップロードに失敗しました')
