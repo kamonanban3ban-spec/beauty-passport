@@ -124,3 +124,11 @@ export async function deleteClientPhoto(clientId, recordId, photoUrl) {
     // Storage削除に失敗しても続行
   }
 }
+
+// ── サロン情報を取得 ────────────────────────────────
+export async function getSalonById(salonId) {
+  const q = query(collection(db, 'salons'), where('salonId', '==', salonId))
+  const snap = await getDocs(q)
+  if (snap.empty) return null
+  return { id: snap.docs[0].id, ...snap.docs[0].data() }
+}
