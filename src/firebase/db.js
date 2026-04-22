@@ -127,8 +127,8 @@ export async function deleteClientPhoto(clientId, recordId, photoUrl) {
 
 // ── サロン情報を取得 ────────────────────────────────
 export async function getSalonById(salonId) {
-  const q = query(collection(db, 'salons'), where('salonId', '==', salonId))
-  const snap = await getDocs(q)
-  if (snap.empty) return null
-  return { id: snap.docs[0].id, ...snap.docs[0].data() }
+  const snap = await getDocs(collection(db, 'salons'))
+  const doc = snap.docs.find(d => d.data().salonId === salonId)
+  if (!doc) return null
+  return { id: doc.id, ...doc.data() }
 }
