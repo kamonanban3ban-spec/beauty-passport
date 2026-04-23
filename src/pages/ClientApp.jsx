@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { INDUSTRIES } from '../industries'
 import { getClientByQrId, subscribeRecords, addClientPhotos, deleteClientPhoto } from '../firebase/db'
 
@@ -86,6 +87,7 @@ export default function ClientApp() {
   const [view, setView]           = useState('feed')
   const [selRecord, setSelRecord] = useState(null)
   const [addPhoto, setAddPhoto]   = useState(null)
+  const [showQR, setShowQR] = useState(false)
   const [photoViewer, setPhotoViewer] = useState(null)
 
   // qrIdからお客様情報を取得
@@ -105,6 +107,8 @@ export default function ClientApp() {
     })
     return unsub
   }, [client])
+
+  const qrUrl = `${window.location.origin}/client?salon=${salonId}&qr=${urlQrId}`
 
   const sharedRecs    = records
   const allGridPhotos = sharedRecs.flatMap(r =>
@@ -211,6 +215,18 @@ export default function ClientApp() {
       )}
 
       <div style={{ borderTop: allGridPhotos.length>0?`2px solid #edd8de`:'none' }}>
+        <div style={{ margin: '16px 0', textAlign: 'center' }}>
+          <button onClick={() => setShowQR(v => !v)} style={{ background: '#c97d8e', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            {showQR ? 'QRを閉じる' : '次回サロンで見せるQR'}
+          </button>
+          {showQR && (
+            <div style={{ marginTop: 16, padding: 20, background: '#f9f0f3', borderRadius: 12 }}>
+              <QRCodeSVG value={qrUrl} size={200} />
+              <div style={{ fontSize: 12, color: '#999', marginTop: 12 }}>次回サロン来店時にこのQRをスタイリストへ見せてください</div>
+              <div style={{ fontSize: 11, color: '#bbb', marginTop: 8, wordBreak: 'break-all' }}>{qrUrl}</div>
+            </div>
+          )}
+        </div>
         {sharedRecs.length===0 && (
           <div style={{ textAlign:'center', color:'#b89ca4', padding:'80px 0', fontFamily:font }}>
             <div style={{ fontSize:40, marginBottom:10 }}>📷</div>
