@@ -20,6 +20,7 @@ export default function GenerateSalonURL() {
   const [password, setPassword] = useState('')
   const [copied, setCopied] = useState(false)
   const [copiedPw, setCopiedPw] = useState(false)
+  const [salonName, setSalonName] = useState('')
 
   const handleLogin = () => {
     if (input === ADMIN_PASSWORD) {
@@ -32,11 +33,13 @@ export default function GenerateSalonURL() {
   const url = salonId ? `${window.location.origin}/staff?salon=${salonId}` : ''
 
   const handleGenerate = async () => {
+    if (!salonName.trim()) { alert('サロン名を入力してください'); return }
     const newSalonId = generateSalonId()
     const newPassword = generatePassword()
     await addDoc(collection(db, 'salons'), {
       salonId: newSalonId,
       password: newPassword,
+      salonName: salonName.trim(),
       createdAt: new Date(),
     })
     setSalonId(newSalonId)
@@ -80,6 +83,13 @@ export default function GenerateSalonURL() {
     <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h2 style={{ marginBottom: 16 }}>サロンURL発行</h2>
 
+      <input
+        type="text"
+        value={salonName}
+        onChange={e => setSalonName(e.target.value)}
+        placeholder="サロン名を入力"
+        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', marginBottom: 12 }}
+      />
       <button onClick={handleGenerate} style={{ background: '#c97d8e', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}>
         🔗 サロンURLを発行する
       </button>

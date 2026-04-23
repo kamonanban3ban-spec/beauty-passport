@@ -101,6 +101,8 @@ export default function StaffApp() {
         memo: newRecord.memo,
         photos: [],
         shared: true,
+        salonId: salon,
+        salonName: salonData?.salonName || '',
       })
       setNewRecord({ date: new Date().toISOString().slice(0,10), menu: [], memo: '' })
       setShowAddRecord(false)
