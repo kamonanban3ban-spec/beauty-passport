@@ -32,7 +32,7 @@ export default function StaffApp() {
 
   useEffect(() => {
     getSalonById(salon).then(data => {
-      setSalonData(data)
+      setSalonData(data); console.log("salonData loaded:", data)
       setCheckingAuth(false)
     })
   }, [salon])
