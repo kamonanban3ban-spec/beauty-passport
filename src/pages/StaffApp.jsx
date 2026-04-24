@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { subscribeClients, subscribeRecords, addClient, addRecord, addStaffPhotos, getSalonById } from '../firebase/db'
+import { subscribeClients, subscribeRecords, addClient, addRecord, addStaffPhotos, getSalonById, getClientByQrId } from '../firebase/db'
 
 const MENUS = ['カット','カラー','パーマ','縮毛矯正','ブリーチ1回','ブリーチ2回','ブリーチ3回','ハイライト','ローライト','トーンダウン']
 
 export default function StaffApp() {
   const salon = new URLSearchParams(window.location.search).get('salon') || 'hair'
+  const urlQrId = new URLSearchParams(window.location.search).get('qr')
   const [authed, setAuthed] = useState(false)
   const [salonData, setSalonData] = useState(null)
   const [pwInput, setPwInput] = useState('')
@@ -70,6 +71,16 @@ export default function StaffApp() {
     })
     return () => unsub?.()
   }, [selClient?.id])
+
+  useEffect(() => {
+    if (!authed || !urlQrId) return
+    getClientByQrId(urlQrId).then(client => {
+      if (client) {
+        setSelClient(client)
+        setView('detail')
+      }
+    })
+  }, [authed, urlQrId])
 
   const openDetail = (client) => {
     if (selClient?.id !== client.id) {
