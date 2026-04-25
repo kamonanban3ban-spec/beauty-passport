@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { QRCodeSVG } from 'qrcode.react'
 import { subscribeClients, subscribeRecords, addClient, addRecord, addStaffPhotos, getSalonById, getClientByQrId } from '../firebase/db'
 
@@ -12,6 +13,9 @@ export default function StaffApp() {
   const [pwInput, setPwInput] = useState('')
   const [pwError, setPwError] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [showQrReader, setShowQrReader] = useState(false)
+  const [qrError, setQrError] = useState('')
+  const qrCodeRef = useRef(null)
 
   const [view, setView] = useState('list')
   const [clients, setClients] = useState([])
@@ -81,6 +85,56 @@ export default function StaffApp() {
       }
     })
   }, [authed, urlQrId])
+
+
+  useEffect(() => {
+    if (!showQrReader) {
+      if (qrCodeRef.current) {
+        qrCodeRef.current.stop().catch(() => {})
+        qrCodeRef.current = null
+      }
+      return
+    }
+    const html5Qrcode = new Html5Qrcode('qr-reader')
+    qrCodeRef.current = html5Qrcode
+    html5Qrcode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 250 },
+      (decodedText) => {
+        html5Qrcode.stop().catch(() => {})
+        qrCodeRef.current = null
+        setShowQrReader(false)
+        try {
+          const url = new URL(decodedText)
+          const qr = url.searchParams.get('qr')
+          if (!qr) { setQrError('QRコードが正しくありません'); return }
+          getClientByQrId(qr).then(client => {
+            if (client) {
+              setSelClient(client)
+              setRecords([])
+              setView('detail')
+              setQrError('')
+            } else {
+              setQrError('お客様が見つかりませんでした')
+            }
+          })
+        } catch {
+          setQrError('QRコードが正しくありません')
+        }
+      },
+      () => {}
+    ).catch(() => {
+      setQrError('カメラを起動できませんでした')
+      setShowQrReader(false)
+    })
+    return () => {
+      if (qrCodeRef.current) {
+        qrCodeRef.current.stop().catch(() => {})
+        qrCodeRef.current = null
+      }
+    }
+  }, [showQrReader])
+
 
   const openDetail = (client) => {
     if (selClient?.id !== client.id) {
@@ -194,8 +248,17 @@ export default function StaffApp() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>お客様一覧</h2>
         <button onClick={() => setView('addClient')} style={primaryBtn}>＋ お客様を登録</button>
+        <button onClick={() => { setShowQrReader(v => !v); setQrError('') }} style={{ ...primaryBtn, background: '#7bbf9a', marginLeft: 8, fontSize: 13 }}>
+          📷 QRを読む
+        </button>
       </div>
-
+      {showQrReader && (
+        <div style={{ marginBottom: 16 }}>
+          <div id="qr-reader" style={{ width: '100%', maxWidth: 480 }} />
+          {qrError && <div style={{ color: '#c97d8e', fontSize: 13, marginTop: 8 }}>{qrError}</div>}
+          <button onClick={() => setShowQrReader(false)} style={{ marginTop: 8, background: '#fff', border: '1px solid #ccc', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13 }}>キャンセル</button>
+        </div>
+      )}
       {loadingClients && <div style={{ color: '#999' }}>読み込み中...</div>}
 
       {!loadingClients && clients.length === 0 && (
