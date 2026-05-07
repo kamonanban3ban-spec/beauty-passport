@@ -196,8 +196,6 @@ export default function StaffApp() {
           memo: '',
           photos: [],
           shared: true,
-          salonId: salon,
-          salonName: salonData?.salonName || '',
         })
       }
       setForm({ name: '', kana: '', phone: '', note: '', menu: [] })
